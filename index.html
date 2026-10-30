@@ -11,159 +11,103 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #09090b;
-      color: #f4f4f5;
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      position: fixed;
-      inset: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-
+    html, body { font-family: 'Inter', -apple-system, sans-serif; background: #09090b; color: #f4f4f5; margin: 0; padding: 0; width: 100%; height: 100%; height: 100dvh; overflow: hidden; position: fixed; inset: 0; -webkit-font-smoothing: antialiased; }
     .safe-top { padding-top: env(safe-area-inset-top, 0px); }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .map-controls-bottom { bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
-
-    @keyframes candyFall { 0% { transform: translateY(-12vh) translateX(0) rotate(0deg) scale(0.8); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(112vh) translateX(var(--drift, 40px)) rotate(var(--spin, 540deg)) scale(1.1); opacity: 0; } }
-    @keyframes ghostSweep { 0% { transform: translateX(-15vw) translateY(0) scale(0.8); opacity: 0; } 15% { opacity: 0.95; } 50% { transform: translateX(50vw) translateY(-35px) scale(1.15); } 85% { opacity: 0.95; } 100% { transform: translateX(115vw) translateY(15px) scale(0.9); opacity: 0; } }
-    @keyframes welcomePop { 0% { opacity: 0; transform: scale(0.3) rotate(-8deg); } 60% { opacity: 1; transform: scale(1.08) rotate(3deg); } 80% { transform: scale(0.96) rotate(-1deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
+    @keyframes candyFall { 0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(112vh) translateX(var(--drift, 40px)) rotate(var(--spin, 540deg)); opacity: 0; } }
+    @keyframes ghostSweep { 0% { transform: translateX(-15vw); opacity: 0; } 20%, 80% { opacity: 0.95; } 100% { transform: translateX(115vw) translateY(-20px); opacity: 0; } }
+    @keyframes welcomePop { 0% { opacity: 0; transform: scale(0.3); } 100% { opacity: 1; transform: scale(1); } }
     @keyframes shakeError { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
-
-    .candy-drop { position: fixed; top: -60px; pointer-events: none; z-index: 9500; animation: candyFall var(--dur, 3.5s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+    .candy-drop { position: fixed; top: -60px; pointer-events: none; z-index: 9500; animation: candyFall var(--dur, 3.5s) linear forwards; }
     .ghost-flyer { position: fixed; left: -80px; pointer-events: none; z-index: 9500; animation: ghostSweep var(--dur, 4.2s) ease-in-out forwards; }
-    .animate-welcome-pop { animation: welcomePop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+    .animate-welcome-pop { animation: welcomePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
     .shake-error { animation: shakeError 0.3s ease-in-out; }
-
     .leaflet-container { background: #09090b !important; width: 100%; height: 100%; }
     .carto-voyager-dark { filter: invert(100%) hue-rotate(180deg) brightness(94%) contrast(92%) saturate(80%); }
-
     .custom-pin { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; background: #18181b; border: 2px solid #f97316; border-radius: 13px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.85), 0 0 0 4px rgba(249,115,22,0.22); transition: transform 0.2s ease; }
     .custom-pin:hover { transform: scale(1.16) translateY(-3px); border-color: #fb923c; z-index: 999 !important; }
     .custom-pin span { font-size: 19px; line-height: 1; }
     .pin-out-of-candy { background: #09090b; border-color: #3f3f46; opacity: 0.6; }
-
     .leaflet-popup-content-wrapper { background: #121215 !important; color: #f4f4f5 !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px !important; padding: 0 !important; overflow: hidden; box-shadow: 0 24px 48px -12px rgba(0,0,0,0.9) !important; }
-    .leaflet-popup-content { margin: 0 !important; width: 270px !important; }
+    .leaflet-popup-content { margin: 0 !important; width: 280px !important; }
     .leaflet-popup-tip { background: #121215 !important; }
     .leaflet-container a.leaflet-popup-close-button { color: #a1a1aa !important; background: rgba(9,9,11,0.75) !important; border-radius: 9999px; width: 26px !important; height: 26px !important; top: 8px !important; right: 8px !important; display: flex; align-items: center; justify-content: center; z-index: 10; }
     .leaflet-bar { border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 12px !important; overflow: hidden; }
     .leaflet-bar a { background-color: #121215 !important; color: #e4e4e7 !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; }
-    .smooth-drawer { will-change: transform; transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+    .smooth-drawer { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
     ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 9999px; }
   </style>
 </head>
 <body class="flex flex-col select-none bg-[#09090b] text-zinc-100">
 
-  <!-- GLOBAL FX PREVIEW LAYER -->
   <div id="fxLayer" class="fixed inset-0 pointer-events-none z-[9500] overflow-hidden"></div>
 
-  <!-- "YOU'RE WELCOME!" GIANT PUMPKIN POPUP -->
+  <!-- CREATOR PUMPKIN POPUP PREVIEW -->
   <div id="welcomePumpkinOverlay" onclick="hideWelcomePumpkin()" class="hidden fixed inset-0 z-[9600] bg-black/75 backdrop-blur-md flex items-center justify-center p-5 cursor-pointer">
-    <div class="animate-welcome-pop relative max-w-sm w-full bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border-2 border-orange-500/60 rounded-3xl p-6 text-center shadow-[0_0_80px_rgba(249,115,22,0.45)]">
-      <div class="w-24 h-24 mx-auto rounded-3xl bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-6xl mb-4 shadow-inner">🎃</div>
-      <span class="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[10px] font-bold uppercase tracking-widest mb-2">Admin Broadcast Preview</span>
-      <h2 class="text-2xl sm:text-4xl font-extrabold bg-gradient-to-r from-white via-orange-200 to-orange-500 bg-clip-text text-transparent">You're Welcome! 🎃</h2>
+    <div class="animate-welcome-pop relative max-w-sm w-full bg-zinc-900 border-2 border-orange-500/60 rounded-3xl p-6 text-center shadow-2xl">
+      <div class="w-24 h-24 mx-auto rounded-3xl bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-6xl mb-4">🎃</div>
+      <span class="inline-block px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[10px] font-bold uppercase tracking-widest mb-2">Live Broadcast Sent</span>
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-orange-400">Message from the Creator 🎃</h2>
       <p id="welcomePumpkinSub" class="text-xs sm:text-sm text-zinc-300 mt-2 leading-relaxed">Happy Trick-or-Treating across the UAE! Stay safe & enjoy the candy! 🍬✨</p>
       <p class="text-[10px] text-zinc-500 mt-4">Tap anywhere to dismiss</p>
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- FULL-SCREEN PASSWORD GATE ("Alibin1")                                     -->
-  <!-- ========================================================================= -->
+  <!-- MASTER LOCK SCREEN ("Alibin1") -->
   <div id="lockScreen" class="fixed inset-0 z-[9999] bg-[#09090b] flex flex-col items-center justify-center p-5 safe-top safe-bottom">
     <div class="absolute w-80 h-80 rounded-full bg-orange-500/10 blur-[100px] pointer-events-none"></div>
     <div id="lockCard" class="relative z-10 w-full max-w-sm bg-[#121215] border border-white/10 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
       <div class="flex flex-col items-center text-center">
-        <div class="w-16 h-16 rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-3xl mb-3 shadow-lg shadow-orange-500/10">
-          🛡️
-        </div>
-        <span class="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest mb-1.5">
-          Restricted Portal
-        </span>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">SpookyMap UAE Admin</h1>
-        <p class="text-xs text-zinc-400 mt-1">Enter your master admin password to unlock house management & live broadcasts.</p>
+        <div class="w-16 h-16 rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-3xl mb-3">🛡️</div>
+        <span class="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest mb-1.5">Restricted Portal</span>
+        <h1 class="text-xl font-extrabold text-white">SpookyMap UAE Admin</h1>
+        <p class="text-xs text-zinc-400 mt-1">Enter your master password to unlock villa editing, moderation & live broadcasts.</p>
       </div>
-
       <form onsubmit="unlockAdminPortal(event)" class="space-y-3.5">
-        <div>
-          <label class="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">Admin Password</label>
-          <div class="relative">
-            <i data-lucide="key-round" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-            <input id="adminPassInput" type="password" required autofocus placeholder="Enter password..."
-              class="w-full pl-10 pr-4 py-2.5 bg-zinc-900 border border-white/15 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500 transition" />
-          </div>
-        </div>
-
-        <p id="lockErrorMsg" class="hidden text-xs text-red-400 font-medium text-center bg-red-500/10 border border-red-500/20 py-2 rounded-xl">
-          Incorrect password. Access denied.
-        </p>
-
-        <button type="submit" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 active:scale-[0.99] text-zinc-950 font-bold text-xs shadow-lg shadow-orange-500/25 transition flex items-center justify-center gap-2">
-          <i data-lucide="unlock" class="w-4 h-4"></i>
-          <span>Unlock Command Center</span>
+        <input id="adminPassInput" type="password" required autofocus placeholder="Enter Admin Password..." class="w-full px-4 py-2.5 bg-zinc-900 border border-white/15 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500" />
+        <p id="lockErrorMsg" class="hidden text-xs text-red-400 font-medium text-center bg-red-500/10 border border-red-500/20 py-2 rounded-xl">Incorrect password. Access denied.</p>
+        <button type="submit" class="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-xs shadow-lg shadow-orange-500/25 transition flex items-center justify-center gap-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i><span>Unlock Command Center</span>
         </button>
       </form>
-
-      <div class="pt-3 border-t border-white/[0.06] text-center text-[10px] text-zinc-500">
-        SpookyMap UAE • By Amaan Hakim & Gemini Argon
-      </div>
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- ADMIN COMMAND CENTER HEADER                                               -->
-  <!-- ========================================================================= -->
+  <!-- HEADER -->
   <header class="safe-top bg-[#09090b]/95 backdrop-blur-xl border-b border-white/[0.08] z-30 shrink-0">
     <div class="h-14 px-3 sm:px-5 flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="w-8 h-8 rounded-xl bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-base shrink-0">🛡️</div>
         <div class="truncate">
           <div class="flex items-center gap-1.5">
-            <h1 class="text-xs sm:text-base font-bold tracking-tight text-white truncate">SpookyMap Admin</h1>
-            <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">UNLOCKED</span>
+            <h1 class="text-xs sm:text-base font-bold text-white truncate">SpookyMap Admin</h1>
+            <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">ROOT ACCESS</span>
           </div>
-          <p class="text-[10px] text-zinc-400 hidden sm:block">Full UAE Database & Broadcast Control</p>
+          <p class="text-[10px] text-zinc-400 hidden sm:block">Edit Details, Moderate Reviews & Broadcast</p>
         </div>
       </div>
 
-      <!-- Quick Stats (Desktop) -->
       <div class="hidden lg:flex items-center gap-2 bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-white/[0.07] text-xs">
-        <span class="text-zinc-400">Total Houses: <strong id="statTotal" class="text-white">0</strong></span>
-        <span class="text-zinc-700">•</span>
-        <span class="text-zinc-400">Active Candy: <strong id="statCandy" class="text-emerald-400">0</strong></span>
-        <span class="text-zinc-700">•</span>
-        <span class="text-zinc-400">Total Likes: <strong id="statLikes" class="text-orange-400">0</strong></span>
+        <span class="text-zinc-400">Villas: <strong id="statTotal" class="text-white">0</strong></span><span>•</span>
+        <span class="text-zinc-400">Has Candy: <strong id="statCandy" class="text-emerald-400">0</strong></span><span>•</span>
+        <span class="text-zinc-400">Reviews: <strong id="statReviews" class="text-amber-400">0</strong></span><span>•</span>
+        <span class="text-zinc-400">Likes: <strong id="statLikes" class="text-orange-400">0</strong></span>
       </div>
 
-      <!-- Right Controls -->
       <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <select id="desktopAreaSelect" onchange="flyToArea(this.value)" class="hidden md:block px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-medium text-zinc-200 border border-white/[0.08] focus:outline-none focus:border-orange-500 cursor-pointer"></select>
-
-        <button onclick="fetchHousesFromSupabase()" title="Sync Database" class="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-300 border border-white/[0.08] transition flex items-center gap-1 text-xs font-medium">
-          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-orange-400"></i>
-          <span class="hidden sm:inline">Sync</span>
+        <select id="desktopAreaSelect" onchange="flyToArea(this.value)" class="hidden md:block px-2.5 py-1.5 rounded-xl bg-zinc-900 text-xs font-medium text-zinc-200 border border-white/[0.08]"></select>
+        <button onclick="fetchHousesFromSupabase()" class="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/[0.08] flex items-center gap-1 text-xs font-medium">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-orange-400"></i><span class="hidden sm:inline">Sync</span>
         </button>
-
-        <button onclick="startAddHouseMode()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 active:scale-95 text-zinc-950 font-semibold text-xs transition flex items-center gap-1 shadow-lg shadow-orange-500/15">
-          <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
-          <span>Add Villa</span>
+        <button onclick="startAddHouseMode()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-xs flex items-center gap-1">
+          <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i><span>Add Villa</span>
         </button>
-
-        <button onclick="lockAdminPortal()" title="Lock Admin Portal" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition flex items-center gap-1 text-xs font-semibold">
-          <i data-lucide="lock" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">Lock</span>
+        <button onclick="lockAdminPortal()" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 flex items-center gap-1 text-xs font-semibold">
+          <i data-lucide="lock" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Lock</span>
         </button>
       </div>
     </div>
@@ -171,49 +115,33 @@
 
   <!-- MOBILE BAR -->
   <div class="md:hidden bg-[#0c0c0f] border-b border-white/[0.07] px-2.5 py-1.5 flex items-center justify-between gap-2 z-20 shrink-0">
-    <select id="mobileAreaSelect" onchange="flyToArea(this.value)" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl bg-zinc-900 text-[11px] font-medium text-white border border-white/[0.08] focus:outline-none focus:border-orange-500 truncate"></select>
+    <select id="mobileAreaSelect" onchange="flyToArea(this.value)" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl bg-zinc-900 text-[11px] font-medium text-white border border-white/[0.08] truncate"></select>
     <button onclick="toggleMobileDrawer()" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-orange-500/40 text-[11px] font-semibold text-orange-300 flex items-center gap-1.5 shrink-0">
-      <i data-lucide="Sliders" class="w-3.5 h-3.5"></i>
-      <span>Admin Panel (<span id="mobileCount">0</span>)</span>
+      <i data-lucide="sliders" class="w-3.5 h-3.5"></i><span>Manage (<span id="mobileCount">0</span>)</span>
     </button>
   </div>
 
   <!-- MAIN WORKSPACE -->
   <div class="flex-1 flex relative overflow-hidden min-h-0">
-    
-    <!-- LEFT SIDEBAR: ADMIN MANAGEMENT + LIVE FX + DB TOOLS -->
-    <aside id="sidebar" class="smooth-drawer w-full sm:w-96 lg:w-[420px] bg-[#0c0c0f] border-r border-white/[0.08] flex flex-col z-20 absolute sm:relative inset-0 transform -translate-x-full sm:translate-x-0 safe-bottom">
-      
-      <!-- Sidebar Mode Tabs -->
+    <aside id="sidebar" class="smooth-drawer w-full sm:w-96 lg:w-[440px] bg-[#0c0c0f] border-r border-white/[0.08] flex flex-col z-20 absolute sm:relative inset-0 transform -translate-x-full sm:translate-x-0 safe-bottom">
       <div class="p-3 border-b border-white/[0.07] flex items-center justify-between gap-1.5 bg-[#09090b] shrink-0">
         <div class="flex gap-1 flex-1 bg-zinc-900 p-1 rounded-xl border border-white/[0.06]">
-          <button onclick="switchAdminTab('houses')" id="admTab-houses" class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-zinc-950 transition">
-            🏠 Houses (<span id="houseCount">0</span>)
-          </button>
-          <button onclick="switchAdminTab('fx')" id="admTab-fx" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
-            ✨ Live FX
-          </button>
-          <button onclick="switchAdminTab('db')" id="admTab-db" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
-            🛠️ DB Tools
-          </button>
+          <button onclick="switchAdminTab('houses')" id="admTab-houses" class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-zinc-950">🏠 Villas (<span id="houseCount">0</span>)</button>
+          <button onclick="switchAdminTab('fx')" id="admTab-fx" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400">✨ Live FX</button>
+          <button onclick="switchAdminTab('db')" id="admTab-db" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400">🛠️ Tools</button>
         </div>
-        <button onclick="toggleMobileDrawer()" class="sm:hidden text-zinc-400 hover:text-white p-1.5">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+        <button onclick="toggleMobileDrawer()" class="sm:hidden text-zinc-400 hover:text-white p-1.5"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <!-- TAB 1: MANAGE & DELETE HOUSES -->
+      <!-- TAB 1: MANAGE, EDIT DETAILS & DELETE VILLAS -->
       <div id="panelHouses" class="flex-1 flex flex-col min-h-0">
         <div class="p-3 border-b border-white/[0.07] space-y-2 shrink-0">
-          <div class="relative">
-            <i data-lucide="search" class="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
-            <input id="searchInput" oninput="renderUI()" type="text" placeholder="Search villa, cluster, or community to manage..." class="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500" />
-          </div>
+          <input id="searchInput" oninput="renderUI()" type="text" placeholder="Search villa, details, or community..." class="w-full px-3 py-2 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-white placeholder-zinc-500" />
           <div class="flex gap-2">
-            <select id="communityFilterSelect" onchange="renderUI()" class="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-zinc-300 focus:outline-none focus:border-orange-500">
+            <select id="communityFilterSelect" onchange="renderUI()" class="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-zinc-300">
               <option value="all">🌍 All UAE Communities</option>
             </select>
-            <select id="statusFilterSelect" onchange="renderUI()" class="px-2.5 py-1.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-zinc-300 focus:outline-none focus:border-orange-500">
+            <select id="statusFilterSelect" onchange="renderUI()" class="px-2.5 py-1.5 bg-zinc-900 border border-white/[0.08] rounded-xl text-xs text-zinc-300">
               <option value="all">All Status</option>
               <option value="plenty">🍬 Plenty</option>
               <option value="low">⚡ Low</option>
@@ -221,88 +149,75 @@
             </select>
           </div>
         </div>
-
-        <div id="houseList" class="flex-1 overflow-y-auto p-3 space-y-2 scroll-smooth min-h-0"></div>
+        <div id="houseList" class="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0"></div>
       </div>
 
-      <!-- TAB 2: LIVE FX & BROADCAST STUDIO -->
+      <!-- TAB 2: LIVE FX & CREATOR BROADCAST STUDIO -->
       <div id="panelFx" class="hidden flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        <div class="p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/30 space-y-1">
-          <p class="text-xs font-bold text-orange-300">✨ Realtime Broadcast Studio</p>
-          <p class="text-[11px] text-zinc-400 leading-relaxed">Trigger visual effects and announcements across connected SpookyMap UAE clients.</p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-2.5">
-          <button onclick="triggerGlobalAdminEvent('candy_rain')" class="p-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-orange-500/50 transition flex items-center justify-between">
-            <div class="flex items-center gap-3 text-left">
-              <span class="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-2xl">🍬</span>
-              <div>
-                <h4 class="text-xs font-bold text-white">Make It Rain Candy</h4>
-                <p class="text-[11px] text-zinc-400">Rains 70+ candies & pumpkins across the screen</p>
-              </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Trigger</span>
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="triggerGlobalAdminEvent('candy_rain')" class="p-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-left"><span class="text-2xl">🍬</span><div><h4 class="text-xs font-bold text-white">Make It Rain Candy</h4><p class="text-[11px] text-zinc-400">Rains 70+ candies across all connected screens</p></div></div>
+            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Send</span>
           </button>
-
-          <button onclick="triggerGlobalAdminEvent('welcome_pumpkin')" class="p-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-orange-500/50 transition flex items-center justify-between">
-            <div class="flex items-center gap-3 text-left">
-              <span class="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-2xl">🎃</span>
-              <div>
-                <h4 class="text-xs font-bold text-white">"You're Welcome!" Giant Pumpkin</h4>
-                <p class="text-[11px] text-zinc-400">Pops up centerpiece glowing pumpkin + candy rain</p>
-              </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Trigger</span>
+          <button onclick="triggerGlobalAdminEvent('welcome_pumpkin')" class="p-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-left"><span class="text-2xl">🎃</span><div><h4 class="text-xs font-bold text-white">"Message from the Creator" Pop-up</h4><p class="text-[11px] text-zinc-400">Shows giant pumpkin overlay + candy rain</p></div></div>
+            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Send</span>
           </button>
-
-          <button onclick="triggerGlobalAdminEvent('ghost_parade')" class="p-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-orange-500/50 transition flex items-center justify-between">
-            <div class="flex items-center gap-3 text-left">
-              <span class="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-2xl">👻</span>
-              <div>
-                <h4 class="text-xs font-bold text-white">Spooky Ghost Parade</h4>
-                <p class="text-[11px] text-zinc-400">Sends ghosts & bats flying across the screen</p>
-              </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Trigger</span>
+          <button onclick="triggerGlobalAdminEvent('ghost_parade')" class="p-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-left"><span class="text-2xl">👻</span><div><h4 class="text-xs font-bold text-white">Spooky Ghost Parade</h4><p class="text-[11px] text-zinc-400">Flies ghosts & bats across everyone's map</p></div></div>
+            <span class="px-2.5 py-1 rounded-lg bg-orange-500 text-zinc-950 font-bold text-[11px]">Send</span>
           </button>
         </div>
 
         <form onsubmit="sendAdminBroadcast(event)" class="p-4 rounded-2xl bg-zinc-900/90 border border-white/10 space-y-3">
           <div class="flex items-center justify-between">
-            <label class="text-xs font-bold text-white">📢 Custom Broadcast Message</label>
-            <span class="text-[10px] text-emerald-400 font-medium">Profanity Filter On</span>
+            <label class="text-xs font-bold text-white">📢 Broadcast Message from the Creator</label>
+            <span class="text-[10px] text-emerald-400">Live Sync</span>
           </div>
-          <textarea id="adminBroadcastInput" rows="2" maxlength="140" required placeholder="e.g. You're welcome everyone! Happy Halloween across the UAE! 🎃" class="w-full px-3 py-2 bg-zinc-950 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500"></textarea>
-          <button type="submit" class="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-xs transition">
-            Broadcast Message & Pumpkin Pop-up
-          </button>
+          <textarea id="adminBroadcastInput" rows="2" maxlength="160" required placeholder="Type announcement for all users..." class="w-full px-3 py-2 bg-zinc-950 border border-white/10 rounded-xl text-xs text-white"></textarea>
+          <div class="flex flex-wrap gap-1">
+            <button type="button" onclick="setQuickBroadcast('🎃 Trick-or-Treating is officially LIVE across the UAE! Stay safe & have fun!')" class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300">🎃 Live Now</button>
+            <button type="button" onclick="setQuickBroadcast('🍬 Don\'t forget to mark houses as Visited and build your Trail!')" class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300">🗺️ Trail Tip</button>
+            <button type="button" onclick="setQuickBroadcast('⭐ Rate your favorite decorated villas in the Reviews tab!')" class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300">⭐ Rate Villas</button>
+          </div>
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input type="checkbox" id="broadcastWithPumpkin" checked class="accent-orange-500" />
+            <span>Include Giant Pumpkin Pop-up & Candy Rain</span>
+          </label>
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-xs">Broadcast to Everyone Now</button>
         </form>
       </div>
 
-      <!-- TAB 3: DATABASE TOOLS & BACKUP -->
+      <!-- TAB 3: ADMIN POWER TOOLS & ANALYTICS -->
       <div id="panelDb" class="hidden flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-        <div class="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-2.5">
-          <h4 class="text-xs font-bold text-white">📦 Export Database Backup (JSON)</h4>
-          <p class="text-[11px] text-zinc-400">Download a complete JSON snapshot of all UAE Halloween houses currently on the map.</p>
-          <button onclick="exportHousesJson()" class="w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs border border-white/10 transition">
-            Download JSON Backup
-          </button>
+        <div class="p-3.5 rounded-2xl bg-zinc-900 border border-white/10 space-y-2">
+          <h4 class="text-xs font-bold text-white">⚡ Bulk Map Actions</h4>
+          <div class="grid grid-cols-1 gap-2">
+            <button onclick="bulkRefillAllCandy()" class="w-full py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-semibold text-xs text-left flex items-center justify-between">
+              <span>🍬 Set All Villas to "Plenty of Candy"</span><span>Run →</span>
+            </button>
+            <button onclick="bulkBoostAllLikes()" class="w-full py-2 px-3 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border border-orange-500/30 font-semibold text-xs text-left flex items-center justify-between">
+              <span>🔥 Party Boost (+5 🎃 Likes to All Villas)</span><span>Run →</span>
+            </button>
+            <button onclick="deleteAllOutOfCandyHouses()" class="w-full py-2 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 font-semibold text-xs text-left flex items-center justify-between">
+              <span>🧹 Delete All "Out of Candy" Villas</span><span>Run →</span>
+            </button>
+          </div>
         </div>
 
-        <div class="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-2.5">
-          <h4 class="text-xs font-bold text-white">🧹 Bulk Clear "Out of Candy" Houses</h4>
-          <p class="text-[11px] text-zinc-400">Delete all houses currently marked as "💤 Out of Candy" from the map at once.</p>
-          <button onclick="deleteAllOutOfCandyHouses()" class="w-full py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-semibold text-xs transition">
-            Delete All "Out of Candy" Houses
-          </button>
+        <div class="p-3.5 rounded-2xl bg-zinc-900 border border-white/10 space-y-2">
+          <h4 class="text-xs font-bold text-white">📊 Community Breakdown</h4>
+          <div id="communityStatsBox" class="space-y-1 text-xs max-h-40 overflow-y-auto pr-1"></div>
         </div>
 
-        <div class="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-2.5">
-          <h4 class="text-xs font-bold text-white">🛠️ Supabase SQL Setup Script</h4>
-          <p class="text-[11px] text-zinc-400">Copy the SQL table creation script for your Supabase SQL Editor.</p>
-          <button onclick="copySqlScript()" class="w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs border border-white/10 transition">
-            Copy SQL Script
-          </button>
+        <div class="p-3.5 rounded-2xl bg-zinc-900 border border-white/10 space-y-2">
+          <h4 class="text-xs font-bold text-white">📦 Backup & Restore Database</h4>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="exportHousesJson()" class="py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs border border-white/10">Export JSON</button>
+            <label class="py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-orange-300 font-semibold text-xs border border-white/10 text-center cursor-pointer">
+              Import JSON<input type="file" accept=".json" class="hidden" onchange="importHousesJson(event)" />
+            </label>
+          </div>
         </div>
       </div>
 
@@ -312,248 +227,189 @@
       </div>
     </aside>
 
-    <!-- MAP AREA -->
+    <!-- MAP -->
     <main class="flex-1 relative bg-[#09090b] min-h-0">
-      <div id="placementBanner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-sm bg-zinc-900/95 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-2xl border border-orange-500/50 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2 min-w-0">
-          <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping shrink-0"></span>
-          <span class="text-xs font-medium truncate">Tap map to add villa as Admin</span>
-        </div>
-        <button onclick="cancelAddHouseMode()" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-[11px] font-medium shrink-0">Cancel</button>
+      <div id="placementBanner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-sm bg-zinc-900/95 text-white px-3.5 py-2 rounded-2xl shadow-2xl border border-orange-500/50 flex items-center justify-between gap-2">
+        <span id="placementBannerText" class="text-xs font-medium truncate">Tap map to place villa</span>
+        <button onclick="cancelMapActionMode()" class="px-2.5 py-1 bg-zinc-800 text-zinc-300 rounded-lg text-[11px] font-medium shrink-0">Cancel</button>
       </div>
-
       <div class="absolute right-3 z-[900] map-controls-bottom">
-        <div class="bg-[#0c0c0f]/90 backdrop-blur-xl p-1 rounded-xl border border-white/10 shadow-2xl flex gap-1 text-[11px]">
-          <button onclick="setMapLayer('dark')" id="layer-dark" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 text-white font-medium transition">Dark</button>
-          <button onclick="setMapLayer('voyager')" id="layer-voyager" class="px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium transition">Voyager</button>
-          <button onclick="setMapLayer('satellite')" id="layer-satellite" class="px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium transition">Satellite</button>
+        <div class="bg-[#0c0c0f]/90 p-1 rounded-xl border border-white/10 shadow-2xl flex gap-1 text-[11px]">
+          <button onclick="setMapLayer('dark')" id="layer-dark" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 text-white font-medium">Dark</button>
+          <button onclick="setMapLayer('voyager')" id="layer-voyager" class="px-2.5 py-1.5 rounded-lg text-zinc-400 font-medium">Voyager</button>
+          <button onclick="setMapLayer('satellite')" id="layer-satellite" class="px-2.5 py-1.5 rounded-lg text-zinc-400 font-medium">Satellite</button>
         </div>
       </div>
-
       <div id="map" class="w-full h-full z-10"></div>
     </main>
   </div>
 
-  <!-- MODAL: ADD HOUSE (ADMIN) -->
+  <!-- MODAL: ADD OR EDIT VILLA (CHANGES DETAILS, TITLE, COMMUNITY, TAGS, LIKES & REVIEWS) -->
   <div id="houseModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 safe-top safe-bottom">
-    <div class="bg-[#121215] border border-white/10 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl max-h-[90dvh] flex flex-col">
+    <div class="bg-[#121215] border border-white/10 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl max-h-[92dvh] flex flex-col">
       <div class="px-5 py-3.5 border-b border-white/[0.08] flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-2"><span class="text-lg">🎃</span><h2 class="text-sm font-semibold text-white">Add Villa (Admin)</h2></div>
+        <div class="flex items-center gap-2"><span class="text-lg">✏️</span><h2 id="modalHeaderTitle" class="text-sm font-semibold text-white">Edit Villa Details</h2></div>
         <button onclick="closeHouseModal()" class="text-zinc-400 hover:text-white p-1"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <form id="houseForm" onsubmit="saveHouse(event)" class="p-4 sm:p-5 space-y-3.5 overflow-y-auto">
-        <input type="hidden" id="formLat" />
-        <input type="hidden" id="formLng" />
+      <form id="houseForm" onsubmit="saveHouse(event)" class="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 min-h-0">
+        <input type="hidden" id="formEditId" />
+        <input type="hidden" id="formLat" /><input type="hidden" id="formLng" />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-[11px] font-medium text-zinc-400 mb-1">UAE Community / Area *</label>
-            <select id="formCommunity" onchange="toggleCustomCommunityInput()" required class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white focus:border-orange-500 focus:outline-none"></select>
+            <select id="formCommunity" onchange="toggleCustomCommunityInput()" required class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white"></select>
           </div>
           <div>
             <label class="block text-[11px] font-medium text-zinc-400 mb-1">Cluster & Villa Number *</label>
-            <input id="formTitle" type="text" required placeholder="e.g. Rahat 42 / Maple 118" class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-600 focus:border-orange-500 focus:outline-none" />
+            <input id="formTitle" type="text" required placeholder="e.g. Rahat 42 / Maple 118" class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white" />
           </div>
         </div>
 
         <div id="customCommunityWrapper" class="hidden">
-          <label class="block text-[11px] font-medium text-orange-400 mb-1">Enter Community & Emirate *</label>
-          <input id="formCustomCommunity" type="text" placeholder="e.g. Green Community, Dubai" class="w-full px-3 py-2 bg-zinc-900 border border-orange-500/40 rounded-xl text-xs text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none" />
+          <label class="block text-[11px] font-medium text-orange-400 mb-1">Custom Community Name *</label>
+          <input id="formCustomCommunity" type="text" placeholder="e.g. Green Community, Dubai" class="w-full px-3 py-2 bg-zinc-900 border border-orange-500/40 rounded-xl text-xs text-white" />
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-2.5">
           <div>
-            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Marker Icon</label>
-            <select id="formIcon" class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white focus:border-orange-500 focus:outline-none">
-              <option value="🎃">🎃 Pumpkin</option>
-              <option value="👻">👻 Ghost</option>
-              <option value="💀">💀 Skeleton</option>
-              <option value="🧙‍♀️">🧙‍♀️ Witch</option>
-              <option value="🍬">🍬 Candy Stop</option>
-              <option value="🕸️">🕸️ Haunted House</option>
+            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Icon</label>
+            <select id="formIcon" class="w-full px-2.5 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white">
+              <option value="🎃">🎃 Pumpkin</option><option value="👻">👻 Ghost</option><option value="💀">💀 Skeleton</option>
+              <option value="🧙‍♀️">🧙‍♀️ Witch</option><option value="🍬">🍬 Candy</option><option value="🕸️">🕸️ Haunted</option>
             </select>
           </div>
           <div>
             <label class="block text-[11px] font-medium text-zinc-400 mb-1">Candy Status</label>
-            <select id="formStatus" class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white focus:border-orange-500 focus:outline-none">
-              <option value="plenty">🍬 Plenty of Candy</option>
-              <option value="low">⚡ Running Low</option>
-              <option value="out">💤 Out of Candy</option>
+            <select id="formStatus" class="w-full px-2.5 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white">
+              <option value="plenty">🍬 Plenty</option><option value="low">⚡ Low</option><option value="out">💤 Out</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-zinc-400 mb-1">🎃 Likes</label>
+            <input id="formLikes" type="number" min="0" value="1" class="w-full px-2.5 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white" />
           </div>
         </div>
 
+        <!-- EDIT DETAILS / ACTIVE HOURS SECTION -->
         <div>
-          <label class="block text-[11px] font-medium text-zinc-400 mb-1">Details / Active Hours *</label>
-          <textarea id="formDesc" required rows="2" placeholder="e.g. Active 5:30–8:30 PM, ring bell for treats!" class="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white placeholder-zinc-600 focus:border-orange-500 focus:outline-none"></textarea>
+          <label class="block text-[11px] font-semibold text-orange-400 mb-1">✏️ Villa Details / Active Hours / Notes *</label>
+          <textarea id="formDesc" required rows="3" placeholder="e.g. Active 5:30–8:30 PM, ring bell for treats!" class="w-full px-3 py-2 bg-zinc-900 border border-orange-500/40 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500"></textarea>
         </div>
 
         <div>
           <label class="block text-[11px] font-medium text-zinc-400 mb-1">Tags</label>
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07] cursor-pointer"><input type="checkbox" id="tagAllergy" class="accent-orange-500 rounded" /><span class="text-zinc-300">🥜 Allergy Safe</span></label>
-            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07] cursor-pointer"><input type="checkbox" id="tagScary" class="accent-orange-500 rounded" /><span class="text-zinc-300">👻 Scary</span></label>
-            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07] cursor-pointer"><input type="checkbox" id="tagToddler" class="accent-orange-500 rounded" /><span class="text-zinc-300">👶 Toddler Friendly</span></label>
-            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07] cursor-pointer"><input type="checkbox" id="tagPhoto" class="accent-orange-500 rounded" /><span class="text-zinc-300">📸 Photo Op</span></label>
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07]"><input type="checkbox" id="tagAllergy" class="accent-orange-500" /><span>🥜 Allergy Safe</span></label>
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07]"><input type="checkbox" id="tagScary" class="accent-orange-500" /><span>👻 Scary</span></label>
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07]"><input type="checkbox" id="tagToddler" class="accent-orange-500" /><span>👶 Toddler Friendly</span></label>
+            <label class="flex items-center gap-2 p-2 rounded-xl bg-zinc-900 border border-white/[0.07]"><input type="checkbox" id="tagPhoto" class="accent-orange-500" /><span>📸 Photo Op</span></label>
           </div>
+        </div>
+
+        <!-- MODERATE REVIEWS SECTION (VISIBLE WHEN EDITING EXISTING VILLA) -->
+        <div id="adminReviewsSection" class="hidden pt-2 border-t border-white/[0.08] space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold uppercase text-zinc-400">💬 Moderate Villa Reviews (<span id="editRevCount">0</span>)</label>
+            <button type="button" onclick="clearAllReviewsOnEditingVilla()" class="text-[10px] text-red-400 hover:underline">Clear All Reviews</button>
+          </div>
+          <div id="adminReviewsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
         </div>
 
         <div class="pt-3 border-t border-white/[0.08] flex items-center justify-end gap-2">
           <button type="button" onclick="closeHouseModal()" class="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-medium">Cancel</button>
-          <button type="submit" id="submitVillaBtn" class="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-xs">Publish Villa</button>
+          <button type="submit" id="submitVillaBtn" class="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-xs">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
 
   <script>
-    // ============================================================================
-    // 1. MASTER PASSWORD GATE ("Alibin1") & PROFANITY FILTER
-    // ============================================================================
     const ADMIN_PASSWORD = 'Alibin1';
     let isUnlocked = sessionStorage.getItem('spookymap_admin_portal_unlocked') === 'true';
 
     function checkLockState() {
-      const lockScreen = document.getElementById('lockScreen');
-      if (isUnlocked) {
-        lockScreen.classList.add('hidden');
-        setTimeout(() => map.invalidateSize(), 150);
-      } else {
-        lockScreen.classList.remove('hidden');
-      }
+      document.getElementById('lockScreen').classList.toggle('hidden', isUnlocked);
+      if (isUnlocked) setTimeout(() => map.invalidateSize(), 150);
     }
 
     function unlockAdminPortal(e) {
       e.preventDefault();
-      const input = document.getElementById('adminPassInput');
-      const errMsg = document.getElementById('lockErrorMsg');
-      const card = document.getElementById('lockCard');
-
+      const input = document.getElementById('adminPassInput'), err = document.getElementById('lockErrorMsg'), card = document.getElementById('lockCard');
       if (input.value === ADMIN_PASSWORD) {
-        isUnlocked = true;
-        sessionStorage.setItem('spookymap_admin_portal_unlocked', 'true');
-        errMsg.classList.add('hidden');
-        input.value = '';
-        checkLockState();
-        fetchHousesFromSupabase();
+        isUnlocked = true; sessionStorage.setItem('spookymap_admin_portal_unlocked', 'true');
+        err.classList.add('hidden'); input.value = ''; checkLockState(); fetchHousesFromSupabase();
       } else {
-        errMsg.classList.remove('hidden');
-        card.classList.remove('shake-error');
-        void card.offsetWidth;
-        card.classList.add('shake-error');
+        err.classList.remove('hidden'); card.classList.remove('shake-error'); void card.offsetWidth; card.classList.add('shake-error');
       }
     }
 
-    function lockAdminPortal() {
-      isUnlocked = false;
-      sessionStorage.removeItem('spookymap_admin_portal_unlocked');
-      checkLockState();
-    }
+    function lockAdminPortal() { isUnlocked = false; sessionStorage.removeItem('spookymap_admin_portal_unlocked'); checkLockState(); }
+    function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-    const BLOCKED_WORDS_REGEX = /\b(fuck|fucker|fucking|fck|fuk|shit|shitty|bullshit|bitch|bitches|asshole|bastard|dick|cock|pussy|cunt|whore|slut|nigger|nigga|faggot|fag|retard|retarded|porn|sex|nude|nudes|kill yourself|kys|penis|vagina|boobs|tits|wank|twat|prick|cum|jizz|dildo|rape|rapist|molest|pedophile|pedo|terrorist|bomb|isis|nazi|hitler)\b/i;
-
-    function containsInappropriateContent(text) {
-      if (!text) return false;
-      const normalized = text.toLowerCase().replace(/[@4]/g, 'a').replace(/[3]/g, 'e').replace(/[1!|]/g, 'i').replace(/[0]/g, 'o').replace(/[$5]/g, 's');
-      return BLOCKED_WORDS_REGEX.test(text) || BLOCKED_WORDS_REGEX.test(normalized);
-    }
-
-    function escapeHtml(str) {
-      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
-    // ============================================================================
-    // 2. SUPABASE CONFIG & UAE COMMUNITIES
-    // ============================================================================
-    const SUPABASE_REST_URL = 'https://ojuljfzhbgycemzwapca.supabase.co/rest/v1';
-    const SUPABASE_PROJECT_URL = 'https://ojuljfzhbgycemzwapca.supabase.co';
+    const SUPABASE_REST_URL = 'https://ojuljfzhbgycemzwapca.supabase.co/rest/v1', SUPABASE_PROJECT_URL = 'https://ojuljfzhbgycemzwapca.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdWxqZnpoYmd5Y2VtendhcGNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDczOTgsImV4cCI6MjEwODc4MzM5OH0._reYqLhUCdidf0WKUXe2Dco6tAMCBLwhZhEs1F6Z6lM';
-    const SUPABASE_HEADERS = {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    };
-
+    const SUPABASE_HEADERS = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY) : null;
     let liveBroadcastChannel = null;
 
     const COORDS = {
-      uae:         { center: [24.8500, 55.2000], zoom: 9.2,  label: '🇦🇪 Entire UAE Overview' },
-      both:        { center: [25.0235, 55.2605], zoom: 14.3, label: '📍 Mudon & DAMAC Hills 1' },
-      dubai:       { center: [25.0900, 55.2700], zoom: 11.4, label: '📍 All Dubai', group: 'Dubai Communities' },
-      mudon:       { center: [25.0225, 55.2690], zoom: 15.3, communityName: 'Mudon', group: 'Dubai Communities' },
-      dh1:         { center: [25.0246, 55.2520], zoom: 15.3, communityName: 'DAMAC Hills 1', group: 'Dubai Communities' },
-      dh2:         { center: [24.8540, 55.3850], zoom: 14.8, communityName: 'DAMAC Hills 2', group: 'Dubai Communities' },
-      ranches1:    { center: [25.0485, 55.2710], zoom: 14.5, communityName: 'Arabian Ranches 1 & 2', group: 'Dubai Communities' },
-      ranches3:    { center: [25.0680, 55.3260], zoom: 15.0, communityName: 'Arabian Ranches 3', group: 'Dubai Communities' },
-      dubaihills:  { center: [25.1110, 55.2480], zoom: 14.5, communityName: 'Dubai Hills Estate', group: 'Dubai Communities' },
-      springs:     { center: [25.0590, 55.1820], zoom: 14.5, communityName: 'The Springs / Meadows / Lakes', group: 'Dubai Communities' },
-      townsquare:  { center: [25.0110, 55.2890], zoom: 14.8, communityName: 'Town Square & Mira', group: 'Dubai Communities' },
-      tilalalghaf: { center: [25.0275, 55.2280], zoom: 14.8, communityName: 'Tilal Al Ghaf & Victory Heights', group: 'Dubai Communities' },
-      jvt:         { center: [25.0470, 55.1930], zoom: 14.4, communityName: 'Jumeirah Park / JVT / JVC', group: 'Dubai Communities' },
-      alfurjan:    { center: [25.0280, 55.1480], zoom: 14.6, communityName: 'Al Furjan', group: 'Dubai Communities' },
-      villanova:   { center: [25.0690, 55.3620], zoom: 14.6, communityName: 'Villanova & The Villa', group: 'Dubai Communities' },
+      uae: { center: [24.85, 55.2], zoom: 9.2 }, both: { center: [25.0235, 55.2605], zoom: 14.3 },
+      dubai: { center: [25.09, 55.27], zoom: 11.4, label: '📍 All Dubai', group: 'Dubai Communities' },
+      mudon: { center: [25.0225, 55.269], zoom: 15.3, communityName: 'Mudon', group: 'Dubai Communities' },
+      dh1: { center: [25.0246, 55.252], zoom: 15.3, communityName: 'DAMAC Hills 1', group: 'Dubai Communities' },
+      dh2: { center: [24.854, 55.385], zoom: 14.8, communityName: 'DAMAC Hills 2', group: 'Dubai Communities' },
+      ranches1: { center: [25.0485, 55.271], zoom: 14.5, communityName: 'Arabian Ranches 1 & 2', group: 'Dubai Communities' },
+      ranches3: { center: [25.068, 55.326], zoom: 15, communityName: 'Arabian Ranches 3', group: 'Dubai Communities' },
+      dubaihills: { center: [25.111, 55.248], zoom: 14.5, communityName: 'Dubai Hills Estate', group: 'Dubai Communities' },
+      springs: { center: [25.059, 55.182], zoom: 14.5, communityName: 'The Springs / Meadows / Lakes', group: 'Dubai Communities' },
+      townsquare: { center: [25.011, 55.289], zoom: 14.8, communityName: 'Town Square & Mira', group: 'Dubai Communities' },
+      tilalalghaf: { center: [25.0275, 55.228], zoom: 14.8, communityName: 'Tilal Al Ghaf & Victory Heights', group: 'Dubai Communities' },
+      jvt: { center: [25.047, 55.193], zoom: 14.4, communityName: 'Jumeirah Park / JVT / JVC', group: 'Dubai Communities' },
+      alfurjan: { center: [25.028, 55.148], zoom: 14.6, communityName: 'Al Furjan', group: 'Dubai Communities' },
+      villanova: { center: [25.069, 55.362], zoom: 14.6, communityName: 'Villanova & The Villa', group: 'Dubai Communities' },
       sustainable: { center: [25.0285, 55.2765], zoom: 15.2, communityName: 'The Sustainable City', group: 'Dubai Communities' },
-      palm:        { center: [25.1124, 55.1390], zoom: 14.2, communityName: 'Palm Jumeirah', group: 'Dubai Communities' },
-      mirdif:      { center: [25.2180, 55.4240], zoom: 14.3, communityName: 'Mirdif', group: 'Dubai Communities' },
-      albarari:    { center: [25.1020, 55.3170], zoom: 14.2, communityName: 'Al Barari & Nad Al Sheba', group: 'Dubai Communities' },
-      abudhabi:    { center: [24.4539, 54.5200], zoom: 11.4, label: '📍 All Abu Dhabi', group: 'Abu Dhabi' },
-      yasisland:   { center: [24.4950, 54.6050], zoom: 13.8, communityName: 'Yas Island & Al Raha (Abu Dhabi)', group: 'Abu Dhabi' },
-      saadiyat:    { center: [24.5400, 54.4400], zoom: 13.8, communityName: 'Saadiyat Island (Abu Dhabi)', group: 'Abu Dhabi' },
-      alreef:      { center: [24.4520, 54.6750], zoom: 14.0, communityName: 'Al Reef & Khalifa City (Abu Dhabi)', group: 'Abu Dhabi' },
-      alain:       { center: [24.2075, 55.7447], zoom: 12.2, communityName: 'Al Ain', group: 'Abu Dhabi' },
-      sharjah:     { center: [25.3150, 55.4800], zoom: 12.5, communityName: 'Aljada & Masaar (Sharjah)', group: 'Sharjah & Northern Emirates' },
-      rak:         { center: [25.6950, 55.7950], zoom: 13.0, communityName: 'Al Hamra & Mina Al Arab (RAK)', group: 'Sharjah & Northern Emirates' },
-      ajman:       { center: [25.4052, 55.5136], zoom: 12.2, communityName: 'Ajman / UAQ / Fujairah', group: 'Sharjah & Northern Emirates' }
+      palm: { center: [25.1124, 55.139], zoom: 14.2, communityName: 'Palm Jumeirah', group: 'Dubai Communities' },
+      mirdif: { center: [25.218, 55.424], zoom: 14.3, communityName: 'Mirdif', group: 'Dubai Communities' },
+      albarari: { center: [25.102, 55.317], zoom: 14.2, communityName: 'Al Barari & Nad Al Sheba', group: 'Dubai Communities' },
+      abudhabi: { center: [24.4539, 54.52], zoom: 11.4, label: '📍 All Abu Dhabi', group: 'Abu Dhabi' },
+      yasisland: { center: [24.495, 54.605], zoom: 13.8, communityName: 'Yas Island & Al Raha (Abu Dhabi)', group: 'Abu Dhabi' },
+      saadiyat: { center: [24.54, 54.44], zoom: 13.8, communityName: 'Saadiyat Island (Abu Dhabi)', group: 'Abu Dhabi' },
+      alreef: { center: [24.452, 54.675], zoom: 14, communityName: 'Al Reef & Khalifa City (Abu Dhabi)', group: 'Abu Dhabi' },
+      alain: { center: [24.2075, 55.7447], zoom: 12.2, communityName: 'Al Ain', group: 'Abu Dhabi' },
+      sharjah: { center: [25.315, 55.48], zoom: 12.5, communityName: 'Aljada & Masaar (Sharjah)', group: 'Sharjah & Northern Emirates' },
+      rak: { center: [25.695, 55.795], zoom: 13, communityName: 'Al Hamra & Mina Al Arab (RAK)', group: 'Sharjah & Northern Emirates' },
+      ajman: { center: [25.4052, 55.5136], zoom: 12.2, communityName: 'Ajman / UAQ / Fujairah', group: 'Sharjah & Northern Emirates' }
     };
 
     function populateUAECommunitySelectors() {
       const groups = {};
-      Object.entries(COORDS).forEach(([key, val]) => {
-        if (!val.group) return;
-        if (!groups[val.group]) groups[val.group] = [];
-        groups[val.group].push({ key, label: val.communityName || val.label, commName: val.communityName });
-      });
-
-      const navGroupsHtml = Object.entries(groups).map(([gName, items]) =>
-        `<optgroup label="${gName}">` + items.map(item => `<option value="${item.key}">${item.label}</option>`).join('') + `</optgroup>`
-      ).join('');
-
-      document.getElementById('desktopAreaSelect').innerHTML = `<option value="both">📍 Mudon & DAMAC Hills 1</option><option value="uae">🇦🇪 Entire UAE Overview</option>` + navGroupsHtml;
-      document.getElementById('mobileAreaSelect').innerHTML = `<option value="both">📍 Mudon & DAMAC Hills 1</option><option value="uae">🇦🇪 Entire UAE Overview</option>` + navGroupsHtml;
-
-      document.getElementById('formCommunity').innerHTML = Object.entries(groups).map(([gName, items]) =>
-        `<optgroup label="${gName}">` + items.filter(i => i.commName).map(i => `<option value="${i.commName}">${i.commName}</option>`).join('') + `</optgroup>`
-      ).join('') + `<optgroup label="Other UAE Area"><option value="__custom__">✨ Other Community (Type Below)...</option></optgroup>`;
+      Object.entries(COORDS).forEach(([k, v]) => { if (!v.group) return; if (!groups[v.group]) groups[v.group] = []; groups[v.group].push({ key: k, label: v.communityName || v.label, commName: v.communityName }); });
+      const navHtml = Object.entries(groups).map(([g, items]) => `<optgroup label="${g}">` + items.map(i => `<option value="${i.key}">${i.label}</option>`).join('') + `</optgroup>`).join('');
+      document.getElementById('desktopAreaSelect').innerHTML = `<option value="both">📍 Mudon & DAMAC Hills 1</option><option value="uae">🇦🇪 Entire UAE Overview</option>` + navHtml;
+      document.getElementById('mobileAreaSelect').innerHTML = `<option value="both">📍 Mudon & DAMAC Hills 1</option><option value="uae">🇦🇪 Entire UAE Overview</option>` + navHtml;
+      document.getElementById('formCommunity').innerHTML = Object.entries(groups).map(([g, items]) => `<optgroup label="${g}">` + items.filter(i => i.commName).map(i => `<option value="${i.commName}">${i.commName}</option>`).join('') + `</optgroup>`).join('') + `<optgroup label="Other UAE Area"><option value="__custom__">✨ Other Community (Type Below)...</option></optgroup>`;
     }
 
-    // ============================================================================
-    // 3. MAP & REALTIME DATABASE MANAGEMENT
-    // ============================================================================
-    let housesMap = {}, isAddingHouse = false, markersLayer = L.layerGroup();
-    const CARTO_VOYAGER_URL = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4x1b_1_ab4b1fa2f97ec58b284fa30c';
-
-    const map = L.map('map', {
-      center: COORDS.both.center, zoom: COORDS.both.zoom, zoomControl: false, attributionControl: false, preferCanvas: true
-    });
+    let housesMap = {}, isAddingHouse = false, movingHouseId = null, markersLayer = L.layerGroup();
+    const CARTO_URL = 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4x1b_1_ab4b1fa2f97ec58b284fa30c';
+    const map = L.map('map', { center: COORDS.both.center, zoom: COORDS.both.zoom, zoomControl: false, attributionControl: false, preferCanvas: true });
     L.control.zoom({ position: 'topright' }).addTo(map);
-
-    const darkVoyagerLayer = L.tileLayer(CARTO_VOYAGER_URL, { maxZoom: 20, className: 'carto-voyager-dark', keepBuffer: 6 });
-    const lightVoyagerLayer = L.tileLayer(CARTO_VOYAGER_URL, { maxZoom: 20, keepBuffer: 6 });
-    const plainSatelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], keepBuffer: 6 });
-
-    darkVoyagerLayer.addTo(map);
-    markersLayer.addTo(map);
+    const darkVoyagerLayer = L.tileLayer(CARTO_URL, { maxZoom: 20, className: 'carto-voyager-dark' });
+    const lightVoyagerLayer = L.tileLayer(CARTO_URL, { maxZoom: 20 });
+    const plainSatelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+    darkVoyagerLayer.addTo(map); markersLayer.addTo(map);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    function formatRow(row) {
+    function formatRow(r) {
+      const rawTags = Array.isArray(r.tags) ? r.tags : [];
       return {
-        id: row.id, community: row.community || 'UAE', title: row.title, lat: Number(row.lat), lng: Number(row.lng),
-        icon: row.icon || '🎃', status: row.status || 'plenty', desc: row.description || '',
-        tags: Array.isArray(row.tags) ? row.tags : [], likes: Number(row.likes || 0),
-        image: row.image || '', createdAt: Number(row.created_at || Date.now())
+        id: r.id, community: r.community || 'UAE', title: r.title || '', lat: Number(r.lat), lng: Number(r.lng),
+        icon: r.icon || '🎃', status: r.status || 'plenty', desc: r.description || '',
+        rawTags, tags: rawTags.filter(i => typeof i === 'string'),
+        reviews: rawTags.filter(i => i && typeof i === 'object' && i.type === 'review'),
+        likes: Number(r.likes || 0), image: r.image || '', createdAt: Number(r.created_at || Date.now())
       };
     }
 
@@ -562,26 +418,21 @@
       try {
         const res = await fetch(`${SUPABASE_REST_URL}/houses?select=*&order=created_at.desc`, { method: 'GET', headers: SUPABASE_HEADERS });
         if (!res.ok) return;
-        const data = await res.json();
-        const nextMap = {};
-        (data || []).forEach(row => { nextMap[row.id] = formatRow(row); });
-        housesMap = nextMap;
+        const data = await res.json(), next = {};
+        (data || []).forEach(r => { next[r.id] = formatRow(r); });
+        housesMap = next;
         updateSidebarCommunityFilterOptions();
         renderUI();
-      } catch (err) { console.warn('Sync error:', err); }
+      } catch (_) {}
     }
 
     function subscribeToRealtime() {
       if (!supabaseClient) return;
-      supabaseClient.channel('public:houses')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'houses' }, payload => {
-          if (payload.eventType === 'DELETE') delete housesMap[payload.old.id];
-          else if (payload.new) housesMap[payload.new.id] = formatRow(payload.new);
-          updateSidebarCommunityFilterOptions();
-          renderUI();
-        })
-        .subscribe();
-
+      supabaseClient.channel('public:houses').on('postgres_changes', { event: '*', schema: 'public', table: 'houses' }, p => {
+        if (p.eventType === 'DELETE') delete housesMap[p.old.id];
+        else if (p.new) housesMap[p.new.id] = formatRow(p.new);
+        updateSidebarCommunityFilterOptions(); renderUI();
+      }).subscribe();
       liveBroadcastChannel = supabaseClient.channel('spookymap_live_fx', { config: { broadcast: { self: false } } });
       liveBroadcastChannel.subscribe();
     }
@@ -589,294 +440,228 @@
     function getHousesArray() { return Object.values(housesMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); }
 
     function updateSidebarCommunityFilterOptions() {
-      const selectEl = document.getElementById('communityFilterSelect');
-      if (!selectEl) return;
-      const currentVal = selectEl.value;
-      const activeCommunities = new Set(['Mudon', 'DAMAC Hills 1']);
-      Object.values(housesMap).forEach(h => { if (h.community) activeCommunities.add(h.community); });
-      const sorted = Array.from(activeCommunities).sort();
-      selectEl.innerHTML = `<option value="all">🌍 All UAE Communities</option>` + sorted.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-      if ([...selectEl.options].some(o => o.value === currentVal)) selectEl.value = currentVal;
+      const sel = document.getElementById('communityFilterSelect'); if (!sel) return;
+      const cur = sel.value, set = new Set(['Mudon', 'DAMAC Hills 1']);
+      Object.values(housesMap).forEach(h => { if (h.community) set.add(h.community); });
+      sel.innerHTML = `<option value="all">🌍 All UAE Communities</option>` + Array.from(set).sort().map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
     }
 
-    // ============================================================================
-    // 4. ADMIN RENDER, INSTANT DELETE & STATUS OVERRIDE
-    // ============================================================================
+    // RENDER UI, STATS & MARKERS
     function renderUI() {
-      const allHouses = getHousesArray();
-      document.getElementById('statTotal').textContent = allHouses.length;
-      document.getElementById('statCandy').textContent = allHouses.filter(h => h.status !== 'out').length;
-      document.getElementById('statLikes').textContent = allHouses.reduce((acc, h) => acc + (h.likes || 0), 0);
+      const all = getHousesArray();
+      document.getElementById('statTotal').textContent = all.length;
+      document.getElementById('statCandy').textContent = all.filter(h => h.status !== 'out').length;
+      document.getElementById('statReviews').textContent = all.reduce((a, h) => a + (h.reviews ? h.reviews.length : 0), 0);
+      document.getElementById('statLikes').textContent = all.reduce((a, h) => a + (h.likes || 0), 0);
+
+      // Community breakdown in Tools tab
+      const counts = {};
+      all.forEach(h => { counts[h.community] = (counts[h.community] || 0) + 1; });
+      const statsBox = document.getElementById('communityStatsBox');
+      if (statsBox) {
+        const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        statsBox.innerHTML = entries.length ? entries.map(([c, n]) => `<div class="flex justify-between py-1 border-b border-white/[0.05]"><span class="text-zinc-300 truncate">${escapeHtml(c)}</span><strong class="text-orange-400">${n} villas</strong></div>`).join('') : '<p class="text-zinc-500">No houses yet.</p>';
+      }
 
       renderMarkers();
       renderAdminHouseList();
       lucide.createIcons();
     }
 
-    function passesFilter(house, query) {
-      const commFilter = document.getElementById('communityFilterSelect').value;
-      const statusFilter = document.getElementById('statusFilterSelect').value;
-      if (commFilter !== 'all' && house.community !== commFilter) return false;
-      if (statusFilter !== 'all' && house.status !== statusFilter) return false;
-      return (house.title || '').toLowerCase().includes(query) ||
-             (house.community || '').toLowerCase().includes(query) ||
-             (house.desc || '').toLowerCase().includes(query);
+    function passesFilter(h, q) {
+      const cf = document.getElementById('communityFilterSelect').value, sf = document.getElementById('statusFilterSelect').value;
+      if (cf !== 'all' && h.community !== cf) return false;
+      if (sf !== 'all' && h.status !== sf) return false;
+      return (h.title || '').toLowerCase().includes(q) || (h.community || '').toLowerCase().includes(q) || (h.desc || '').toLowerCase().includes(q);
     }
 
     function renderMarkers() {
       markersLayer.clearLayers();
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      getHousesArray().forEach(house => {
-        if (!passesFilter(house, query)) return;
-        const isOut = house.status === 'out';
-        const icon = L.divIcon({
-          className: '',
-          html: `<div class="custom-pin ${isOut ? 'pin-out-of-candy' : ''}"><span>${isOut ? '💤' : escapeHtml(house.icon)}</span></div>`,
-          iconSize: [38, 38], iconAnchor: [19, 19], popupAnchor: [0, -20]
-        });
-
-        const safeComm = escapeHtml(house.community), safeTitle = escapeHtml(house.title), safeDesc = escapeHtml(house.desc);
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      getHousesArray().forEach(h => {
+        if (!passesFilter(h, q)) return;
+        const isOut = h.status === 'out', safeId = escapeHtml(h.id);
+        const icon = L.divIcon({ className: '', html: `<div class="custom-pin ${isOut ? 'pin-out-of-candy' : ''}"><span>${isOut ? '💤' : escapeHtml(h.icon)}</span></div>`, iconSize: [38, 38], iconAnchor: [19, 19], popupAnchor: [0, -20] });
         const popupHtml = `
           <div class="p-3.5 space-y-2.5 text-left">
             <div class="flex items-center justify-between gap-1">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-orange-400 truncate">${safeComm}</span>
-              <span class="text-[10px] text-zinc-400">🎃 ${house.likes || 0}</span>
+              <span class="text-[10px] font-bold uppercase text-orange-400 truncate">${escapeHtml(h.community)}</span>
+              <span class="text-[10px] text-zinc-400">🎃 ${h.likes || 0} • 💬 ${(h.reviews || []).length}</span>
             </div>
-            <h3 class="font-bold text-xs text-white">${escapeHtml(house.icon)} ${safeTitle}</h3>
-            <p class="text-[11px] text-zinc-400 leading-relaxed">${safeDesc}</p>
-            <div class="pt-2 border-t border-white/10 flex items-center justify-between gap-1.5">
-              <select onchange="setHouseStatus('${house.id}', this.value)" class="px-2 py-1 rounded-lg bg-zinc-900 border border-white/15 text-[11px] text-white">
-                <option value="plenty" ${house.status === 'plenty' ? 'selected' : ''}>🍬 Plenty</option>
-                <option value="low" ${house.status === 'low' ? 'selected' : ''}>⚡ Low</option>
-                <option value="out" ${house.status === 'out' ? 'selected' : ''}>💤 Out</option>
-              </select>
-              <button onclick="deleteHouse('${house.id}')" class="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-400 text-zinc-950 font-bold text-[11px] transition">
-                🗑️ Delete Villa
-              </button>
+            <h3 class="font-bold text-xs text-white">${escapeHtml(h.icon)} ${escapeHtml(h.title)}</h3>
+            <p class="text-[11px] text-zinc-300 bg-zinc-900/90 p-2 rounded-lg border border-white/10 leading-relaxed">${escapeHtml(h.desc)}</p>
+            <div class="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-1">
+              <button onclick="openEditHouseModal('${safeId}')" class="px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold text-[11px]">✏️ Edit Details</button>
+              <button onclick="startMovePinMode('${safeId}')" class="px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold">📍 Move</button>
+              <button onclick="deleteHouse('${safeId}')" class="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-zinc-950 font-bold text-[11px]">🗑️ Delete</button>
             </div>
           </div>`;
-
-        L.marker([house.lat, house.lng], { icon }).bindPopup(popupHtml).addTo(markersLayer);
+        L.marker([h.lat, h.lng], { icon }).bindPopup(popupHtml).addTo(markersLayer);
       });
     }
 
     function renderAdminHouseList() {
-      const listEl = document.getElementById('houseList');
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = getHousesArray().filter(h => passesFilter(h, query));
-
+      const listEl = document.getElementById('houseList'), q = document.getElementById('searchInput').value.toLowerCase(), filtered = getHousesArray().filter(h => passesFilter(h, q));
       document.getElementById('houseCount').textContent = filtered.length;
       document.getElementById('mobileCount').textContent = filtered.length;
+      if (!filtered.length) { listEl.innerHTML = `<div class="text-center py-12 px-4 text-xs text-zinc-500">No matching villas found.</div>`; return; }
 
-      if (filtered.length === 0) {
-        listEl.innerHTML = `<div class="text-center py-12 px-4 text-xs text-zinc-500">No matching houses found.</div>`;
-        return;
+      listEl.innerHTML = filtered.map(h => {
+        const safeId = escapeHtml(h.id), revCount = (h.reviews || []).length;
+        return `
+        <div class="bg-zinc-900/80 border border-white/[0.07] hover:border-white/15 rounded-xl p-3 space-y-2 transition">
+          <div class="flex items-start justify-between gap-2">
+            <div onclick="focusHouse('${safeId}')" class="cursor-pointer min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold uppercase text-orange-400 truncate">${escapeHtml(h.community)}</span>
+                <span class="text-[10px] text-zinc-500">• 🎃 ${h.likes || 0} • 💬 ${revCount}</span>
+              </div>
+              <h4 class="text-xs font-bold text-white truncate mt-0.5">${escapeHtml(h.icon)} ${escapeHtml(h.title)}</h4>
+              <p class="text-[11px] text-zinc-300 line-clamp-2 mt-1 bg-zinc-950/70 px-2 py-1.5 rounded-lg border border-white/[0.05]">${escapeHtml(h.desc)}</p>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+            <select onchange="setHouseStatus('${safeId}', this.value)" class="px-2 py-1 rounded-lg bg-zinc-950 border border-white/10 text-zinc-200 text-[11px]">
+              <option value="plenty" ${h.status === 'plenty' ? 'selected' : ''}>🍬 Plenty</option>
+              <option value="low" ${h.status === 'low' ? 'selected' : ''}>⚡ Low</option>
+              <option value="out" ${h.status === 'out' ? 'selected' : ''}>💤 Out</option>
+            </select>
+            <div class="flex items-center gap-1">
+              <button onclick="openEditHouseModal('${safeId}')" class="px-2.5 py-1 rounded-lg bg-orange-500/20 hover:bg-orange-500 text-orange-300 hover:text-zinc-950 border border-orange-500/30 font-bold text-[11px] transition">✏️ Edit Details</button>
+              <button onclick="startMovePinMode('${safeId}')" class="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-[11px]">📍 Move</button>
+              <button onclick="deleteHouse('${safeId}')" class="px-2 py-1 rounded-lg bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-zinc-950 border border-red-500/30 font-bold text-[11px] transition">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // FULL VILLA EDITOR (DETAILS, TITLE, COMMUNITY, TAGS, LIKES & REVIEWS MODERATION)
+    function openEditHouseModal(id) {
+      const h = housesMap[id]; if (!h) return;
+      map.closePopup();
+      document.getElementById('modalHeaderTitle').textContent = `Edit Villa: ${h.title}`;
+      document.getElementById('submitVillaBtn').textContent = 'Save Changes';
+      document.getElementById('formEditId').value = h.id;
+      document.getElementById('formLat').value = h.lat;
+      document.getElementById('formLng').value = h.lng;
+      document.getElementById('formTitle').value = h.title;
+      document.getElementById('formDesc').value = h.desc;
+      document.getElementById('formIcon').value = h.icon || '🎃';
+      document.getElementById('formStatus').value = h.status || 'plenty';
+      document.getElementById('formLikes').value = h.likes || 0;
+
+      const sel = document.getElementById('formCommunity');
+      if ([...sel.options].some(o => o.value === h.community)) {
+        sel.value = h.community;
+        document.getElementById('customCommunityWrapper').classList.add('hidden');
+      } else {
+        sel.value = '__custom__';
+        document.getElementById('customCommunityWrapper').classList.remove('hidden');
+        document.getElementById('formCustomCommunity').value = h.community;
       }
 
-      listEl.innerHTML = filtered.map(house => `
-        <div class="bg-zinc-900/80 border border-white/[0.07] hover:border-white/15 rounded-xl p-3 space-y-2.5 transition">
-          <div class="flex items-start justify-between gap-2">
-            <div onclick="focusHouse('${house.id}')" class="cursor-pointer min-w-0 flex-1">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-orange-400 block truncate">${escapeHtml(house.community)}</span>
-              <h4 class="text-xs font-bold text-white truncate mt-0.5">${escapeHtml(house.icon)} ${escapeHtml(house.title)}</h4>
-              <p class="text-[11px] text-zinc-400 line-clamp-2 mt-0.5">${escapeHtml(house.desc)}</p>
-            </div>
-            <button onclick="deleteHouse('${house.id}')" title="Delete House" class="px-2.5 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-zinc-950 border border-red-500/30 text-[11px] font-bold transition shrink-0">
-              Delete
-            </button>
-          </div>
+      const tags = h.tags || [];
+      document.getElementById('tagAllergy').checked = tags.includes('allergy');
+      document.getElementById('tagScary').checked = tags.includes('scary');
+      document.getElementById('tagToddler').checked = tags.includes('toddler');
+      document.getElementById('tagPhoto').checked = tags.includes('photo');
 
-          <div class="pt-2 border-t border-white/[0.06] flex items-center justify-between gap-2 text-[11px]">
-            <select onchange="setHouseStatus('${house.id}', this.value)" class="px-2 py-1 rounded-lg bg-zinc-950 border border-white/10 text-zinc-200 text-[11px]">
-              <option value="plenty" ${house.status === 'plenty' ? 'selected' : ''}>🍬 Plenty of Candy</option>
-              <option value="low" ${house.status === 'low' ? 'selected' : ''}>⚡ Running Low</option>
-              <option value="out" ${house.status === 'out' ? 'selected' : ''}>💤 Out of Candy</option>
-            </select>
-            <button onclick="focusHouse('${house.id}')" class="text-zinc-400 hover:text-orange-400 font-medium">Locate on Map ↗</button>
+      renderAdminReviewsList(h);
+      document.getElementById('adminReviewsSection').classList.remove('hidden');
+      document.getElementById('houseModal').classList.remove('hidden');
+    }
+
+    function renderAdminReviewsList(h) {
+      const revs = h.reviews || [];
+      document.getElementById('editRevCount').textContent = revs.length;
+      const box = document.getElementById('adminReviewsList');
+      if (!revs.length) { box.innerHTML = `<p class="text-[11px] text-zinc-500">No user comments on this villa.</p>`; return; }
+      box.innerHTML = revs.map((r, idx) => `
+        <div class="p-2 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-between gap-2 text-[11px]">
+          <div class="min-w-0 flex-1">
+            <span class="font-bold text-white">${escapeHtml(r.author)}</span> <span class="text-amber-400">(${r.rating}⭐)</span>:
+            <span class="text-zinc-300">${escapeHtml(r.text)}</span>
           </div>
+          <button type="button" onclick="deleteSingleReview('${escapeHtml(h.id)}', ${idx})" class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500 hover:text-zinc-950 font-bold text-[10px] shrink-0">Delete</button>
         </div>
       `).join('');
     }
 
-    async function deleteHouse(id) {
-      if (!isUnlocked) return;
-      const h = housesMap[id];
-      if (!confirm(`Delete "${h ? h.title : id}" from the map for everyone?`)) return;
-      delete housesMap[id];
-      updateSidebarCommunityFilterOptions();
-      renderUI();
-      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: SUPABASE_HEADERS });
+    async function deleteSingleReview(houseId, revIdx) {
+      const h = housesMap[houseId]; if (!h) return;
+      const revs = [...(h.reviews || [])];
+      revs.splice(revIdx, 1);
+      const nonRevTags = (h.rawTags || []).filter(i => !(i && typeof i === 'object' && i.type === 'review'));
+      const nextRawTags = [...nonRevTags, ...revs];
+      h.rawTags = nextRawTags; h.reviews = revs;
+      renderAdminReviewsList(h); renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(houseId)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ tags: nextRawTags }) });
     }
 
-    async function setHouseStatus(id, nextStatus) {
-      if (!isUnlocked || !housesMap[id]) return;
-      housesMap[id].status = nextStatus;
-      renderUI();
-      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ status: nextStatus })
-      });
+    async function clearAllReviewsOnEditingVilla() {
+      const id = document.getElementById('formEditId').value, h = housesMap[id];
+      if (!h || !(h.reviews || []).length) return;
+      if (!confirm('Clear all reviews on this villa?')) return;
+      const nonRevTags = (h.rawTags || []).filter(i => !(i && typeof i === 'object' && i.type === 'review'));
+      h.rawTags = nonRevTags; h.reviews = [];
+      renderAdminReviewsList(h); renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ tags: nonRevTags }) });
     }
 
-    async function deleteAllOutOfCandyHouses() {
-      if (!isUnlocked) return;
-      const outHouses = getHousesArray().filter(h => h.status === 'out');
-      if (outHouses.length === 0) return alert('There are no "Out of Candy" houses to delete.');
-      if (!confirm(`Delete all ${outHouses.length} "Out of Candy" houses permanently?`)) return;
-
-      outHouses.forEach(h => delete housesMap[h.id]);
-      renderUI();
-      await fetch(`${SUPABASE_REST_URL}/houses?status=eq.out`, { method: 'DELETE', headers: SUPABASE_HEADERS });
-    }
-
-    function exportHousesJson() {
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getHousesArray(), null, 2));
-      const a = document.createElement('a');
-      a.setAttribute('href', dataStr);
-      a.setAttribute('download', `spookymap_uae_backup_${Date.now()}.json`);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-
-    function copySqlScript() {
-      const sql = `create table if not exists public.houses (id text primary key, community text not null, title text not null, lat double precision not null, lng double precision not null, icon text default '🎃', status text default 'plenty', description text not null, tags jsonb default '[]'::jsonb, likes integer default 1, image text default '', created_at bigint not null);\nalter table public.houses enable row level security;\ncreate policy "Public access" on public.houses for all to anon, authenticated using (true) with check (true);\nalter publication supabase_realtime add table public.houses;`;
-      navigator.clipboard.writeText(sql);
-      alert('SQL copied to clipboard!');
-    }
-
-    // ============================================================================
-    // 5. LIVE FX & BROADCAST STUDIO
-    // ============================================================================
-    function runCandyRainFX() {
-      const layer = document.getElementById('fxLayer');
-      const candies = ['🍬', '🍭', '🍫', '🎃', '🧁', '🍩', '✨'];
-      for (let i = 0; i < 65; i++) {
-        const el = document.createElement('div');
-        el.className = 'candy-drop';
-        el.textContent = candies[Math.floor(Math.random() * candies.length)];
-        el.style.left = Math.random() * 98 + 'vw';
-        el.style.fontSize = (20 + Math.random() * 20) + 'px';
-        el.style.setProperty('--dur', (2.3 + Math.random() * 2.2) + 's');
-        el.style.setProperty('--drift', ((Math.random() - 0.5) * 160) + 'px');
-        el.style.setProperty('--spin', ((Math.random() > 0.5 ? 1 : -1) * 540) + 'deg');
-        el.style.animationDelay = (Math.random() * 1.2) + 's';
-        layer.appendChild(el);
-        setTimeout(() => el.remove(), 5000);
-      }
-    }
-
-    function showWelcomePumpkinFX(subText) {
-      runCandyRainFX();
-      document.getElementById('welcomePumpkinSub').textContent = subText || 'Happy Trick-or-Treating across the UAE! Stay safe & enjoy the candy! 🍬✨';
-      document.getElementById('welcomePumpkinOverlay').classList.remove('hidden');
-      setTimeout(() => hideWelcomePumpkin(), 5500);
-    }
-
-    function hideWelcomePumpkin() {
-      document.getElementById('welcomePumpkinOverlay').classList.add('hidden');
-    }
-
-    function runGhostParadeFX() {
-      const layer = document.getElementById('fxLayer');
-      const flyers = ['👻', '🦇', '🎃', '👻', '✨'];
-      for (let i = 0; i < 22; i++) {
-        const el = document.createElement('div');
-        el.className = 'ghost-flyer';
-        el.textContent = flyers[i % flyers.length];
-        el.style.top = (8 + Math.random() * 80) + 'vh';
-        el.style.fontSize = (26 + Math.random() * 22) + 'px';
-        el.style.setProperty('--dur', (3.0 + Math.random() * 2.0) + 's');
-        el.style.animationDelay = (Math.random() * 1.1) + 's';
-        layer.appendChild(el);
-        setTimeout(() => el.remove(), 5500);
-      }
-    }
-
-    function triggerGlobalAdminEvent(type) {
-      if (!isUnlocked) return;
-      if (type === 'candy_rain') runCandyRainFX();
-      else if (type === 'welcome_pumpkin') showWelcomePumpkinFX();
-      else if (type === 'ghost_parade') runGhostParadeFX();
-
-      if (liveBroadcastChannel) {
-        liveBroadcastChannel.send({ type: 'broadcast', event: 'admin_fx', payload: { type, timestamp: Date.now() } });
-      }
-    }
-
-    function sendAdminBroadcast(e) {
-      e.preventDefault();
-      if (!isUnlocked) return;
-      const input = document.getElementById('adminBroadcastInput');
-      const msg = (input.value || '').trim();
-      if (!msg) return;
-      if (containsInappropriateContent(msg)) {
-        return alert('⚠️ Profanity Filter: Please keep broadcast messages family-friendly.');
-      }
-      showWelcomePumpkinFX(msg);
-      if (liveBroadcastChannel) {
-        liveBroadcastChannel.send({
-          type: 'broadcast',
-          event: 'admin_fx',
-          payload: { type: 'broadcast', message: msg, withPumpkin: true, timestamp: Date.now() }
-        });
-      }
-      input.value = '';
-    }
-
-    // ============================================================================
-    // 6. UI TABS, ADD VILLA & MAP NAVIGATION
-    // ============================================================================
-    function switchAdminTab(tab) {
-      ['houses', 'fx', 'db'].forEach(t => {
-        document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== tab);
-        document.getElementById(`admTab-${t}`).className = t === tab
-          ? 'flex-1 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-zinc-950 transition'
-          : 'flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition';
-      });
-    }
-
-    function startAddHouseMode() {
-      isAddingHouse = true;
+    // MOVE PIN MODE (ADMIN CAN MOVE ANY HOUSE PIN)
+    function startMovePinMode(id) {
+      const h = housesMap[id]; if (!h) return;
+      movingHouseId = id; isAddingHouse = false; map.closePopup();
+      document.getElementById('placementBannerText').textContent = `Tap new map location for "${h.title}"`;
       document.getElementById('placementBanner').classList.remove('hidden');
       document.getElementById('map').style.cursor = 'crosshair';
       if (window.innerWidth < 640) document.getElementById('sidebar').classList.add('-translate-x-full');
     }
 
-    function cancelAddHouseMode() {
-      isAddingHouse = false;
+    function startAddHouseMode() {
+      isAddingHouse = true; movingHouseId = null;
+      document.getElementById('placementBannerText').textContent = 'Tap map to add new villa';
+      document.getElementById('placementBanner').classList.remove('hidden');
+      document.getElementById('map').style.cursor = 'crosshair';
+      if (window.innerWidth < 640) document.getElementById('sidebar').classList.add('-translate-x-full');
+    }
+
+    function cancelMapActionMode() {
+      isAddingHouse = false; movingHouseId = null;
       document.getElementById('placementBanner').classList.add('hidden');
       document.getElementById('map').style.cursor = '';
     }
+
+    map.on('click', async function(e) {
+      if (!isAddingHouse && !movingHouseId) return;
+      const { lat, lng } = e.latlng;
+      if (movingHouseId) {
+        const id = movingHouseId, h = housesMap[id]; cancelMapActionMode();
+        if (!h) return;
+        h.lat = Number(lat.toFixed(6)); h.lng = Number(lng.toFixed(6));
+        renderUI();
+        await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ lat: h.lat, lng: h.lng }) });
+        return;
+      }
+      cancelMapActionMode();
+      document.getElementById('houseForm').reset();
+      document.getElementById('formEditId').value = '';
+      document.getElementById('modalHeaderTitle').textContent = 'Add New Villa (Admin)';
+      document.getElementById('submitVillaBtn').textContent = 'Publish Villa';
+      document.getElementById('adminReviewsSection').classList.add('hidden');
+      document.getElementById('formLat').value = lat.toFixed(6);
+      document.getElementById('formLng').value = lng.toFixed(6);
+      document.getElementById('formLikes').value = 1;
+      document.getElementById('houseModal').classList.remove('hidden');
+    });
 
     function toggleCustomCommunityInput() {
       const isCustom = document.getElementById('formCommunity').value === '__custom__';
       document.getElementById('customCommunityWrapper').classList.toggle('hidden', !isCustom);
       document.getElementById('formCustomCommunity').required = isCustom;
     }
-
-    function detectClosestUAECommunity(lat, lng) {
-      let closestName = 'Mudon', minDistanceSq = Infinity;
-      Object.values(COORDS).forEach(entry => {
-        if (!entry.communityName) return;
-        const dLat = lat - entry.center[0], dLng = lng - entry.center[1];
-        const distSq = dLat * dLat + dLng * dLng;
-        if (distSq < minDistanceSq) { minDistanceSq = distSq; closestName = entry.communityName; }
-      });
-      return minDistanceSq < 0.0065 ? closestName : '__custom__';
-    }
-
-    map.on('click', function(e) {
-      if (!isAddingHouse) return;
-      cancelAddHouseMode();
-      const { lat, lng } = e.latlng;
-      document.getElementById('formLat').value = lat.toFixed(6);
-      document.getElementById('formLng').value = lng.toFixed(6);
-      const detected = detectClosestUAECommunity(lat, lng);
-      const selectEl = document.getElementById('formCommunity');
-      selectEl.value = [...selectEl.options].some(o => o.value === detected) ? detected : '__custom__';
-      toggleCustomCommunityInput();
-      document.getElementById('houseModal').classList.remove('hidden');
-    });
 
     function closeHouseModal() {
       document.getElementById('houseModal').classList.add('hidden');
@@ -886,74 +671,172 @@
 
     async function saveHouse(e) {
       e.preventDefault();
-      const selectedCommunity = document.getElementById('formCommunity').value;
-      const finalCommunity = selectedCommunity === '__custom__' ? (document.getElementById('formCustomCommunity').value.trim() || 'UAE') : selectedCommunity;
-      const titleText = document.getElementById('formTitle').value.trim();
-      const descText = document.getElementById('formDesc').value.trim();
+      if (!isUnlocked) return;
+      const editId = document.getElementById('formEditId').value;
+      const selComm = document.getElementById('formCommunity').value;
+      const finalComm = selComm === '__custom__' ? (document.getElementById('formCustomCommunity').value.trim() || 'UAE') : selComm;
+      const title = document.getElementById('formTitle').value.trim();
+      const desc = document.getElementById('formDesc').value.trim();
+      const icon = document.getElementById('formIcon').value;
+      const status = document.getElementById('formStatus').value;
+      const likes = Math.max(0, parseInt(document.getElementById('formLikes').value, 10) || 0);
 
-      if (containsInappropriateContent(finalCommunity) || containsInappropriateContent(titleText) || containsInappropriateContent(descText)) {
-        return alert('⚠️ Family-Friendly Filter: Please remove inappropriate language.');
-      }
+      const featureTags = [];
+      if (document.getElementById('tagAllergy').checked) featureTags.push('allergy');
+      if (document.getElementById('tagScary').checked) featureTags.push('scary');
+      if (document.getElementById('tagToddler').checked) featureTags.push('toddler');
+      if (document.getElementById('tagPhoto').checked) featureTags.push('photo');
 
-      const tags = [];
-      if (document.getElementById('tagAllergy').checked) tags.push('allergy');
-      if (document.getElementById('tagScary').checked) tags.push('scary');
-      if (document.getElementById('tagToddler').checked) tags.push('toddler');
-      if (document.getElementById('tagPhoto').checked) tags.push('photo');
-
-      const rowData = {
-        id: 'villa_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-        community: finalCommunity, title: titleText,
-        lat: parseFloat(document.getElementById('formLat').value),
-        lng: parseFloat(document.getElementById('formLng').value),
-        icon: document.getElementById('formIcon').value,
-        status: document.getElementById('formStatus').value,
-        description: descText, tags, likes: 1, image: '', created_at: Date.now()
-      };
-
-      const res = await fetch(`${SUPABASE_REST_URL}/houses`, { method: 'POST', headers: SUPABASE_HEADERS, body: JSON.stringify(rowData) });
-      if (res.ok) {
-        housesMap[rowData.id] = formatRow(rowData);
-        updateSidebarCommunityFilterOptions();
-        closeHouseModal();
-        renderUI();
-        map.flyTo([rowData.lat, rowData.lng], 17, { animate: true, duration: 1.1 });
+      if (editId && housesMap[editId]) {
+        // Update existing villa (preserving owner signature and reviews in rawTags)
+        const existing = housesMap[editId];
+        const preservedObjects = (existing.rawTags || []).filter(i => i && typeof i === 'object');
+        const nextRawTags = [...featureTags, ...preservedObjects];
+        const patchData = { community: finalComm, title, description: desc, icon, status, likes, tags: nextRawTags };
+        const res = await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(editId)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify(patchData) });
+        if (res.ok) {
+          housesMap[editId] = formatRow({ ...existing, ...patchData, id: editId, lat: existing.lat, lng: existing.lng, created_at: existing.createdAt });
+          updateSidebarCommunityFilterOptions(); closeHouseModal(); renderUI();
+        }
+      } else {
+        // Create new villa
+        const rowData = {
+          id: 'villa_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          community: finalComm, title,
+          lat: parseFloat(document.getElementById('formLat').value),
+          lng: parseFloat(document.getElementById('formLng').value),
+          icon, status, description: desc, tags: featureTags, likes, image: '', created_at: Date.now()
+        };
+        const res = await fetch(`${SUPABASE_REST_URL}/houses`, { method: 'POST', headers: SUPABASE_HEADERS, body: JSON.stringify(rowData) });
+        if (res.ok) {
+          housesMap[rowData.id] = formatRow(rowData);
+          updateSidebarCommunityFilterOptions(); closeHouseModal(); renderUI();
+          map.flyTo([rowData.lat, rowData.lng], 17, { animate: true, duration: 1.1 });
+        }
       }
     }
 
-    function flyToArea(area) {
-      const target = COORDS[area] || COORDS.uae;
-      map.flyTo(target.center, target.zoom, { animate: true, duration: 1.2 });
-    }
-
-    function focusHouse(id) {
+    async function deleteHouse(id) {
+      if (!isUnlocked) return;
       const h = housesMap[id];
-      if (!h) return;
-      if (window.innerWidth < 640) toggleMobileDrawer();
-      map.flyTo([h.lat, h.lng], 17.2, { animate: true, duration: 1.1 });
+      if (!confirm(`Delete "${h ? h.title : id}" permanently for everyone?`)) return;
+      delete housesMap[id]; updateSidebarCommunityFilterOptions(); renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: SUPABASE_HEADERS });
     }
 
-    function setMapLayer(type) {
-      map.removeLayer(darkVoyagerLayer);
-      map.removeLayer(lightVoyagerLayer);
-      map.removeLayer(plainSatelliteLayer);
-      ['dark', 'voyager', 'satellite'].forEach(id => {
-        document.getElementById(`layer-${id}`).className = 'px-2.5 py-1.5 rounded-lg text-zinc-400 hover:text-white font-medium transition';
+    async function setHouseStatus(id, nextStatus) {
+      if (!isUnlocked || !housesMap[id]) return;
+      housesMap[id].status = nextStatus; renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ status: nextStatus }) });
+    }
+
+    // BULK POWER TOOLS
+    async function bulkRefillAllCandy() {
+      if (!isUnlocked || !confirm('Set ALL villas across the UAE to "🍬 Plenty of Candy"?')) return;
+      Object.values(housesMap).forEach(h => { h.status = 'plenty'; });
+      renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?status=neq.plenty`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ status: 'plenty' }) });
+    }
+
+    async function bulkBoostAllLikes() {
+      if (!isUnlocked || !confirm('Add +5 🎃 Likes to every villa on the map?')) return;
+      const all = getHousesArray();
+      for (const h of all) {
+        h.likes = (h.likes || 0) + 5;
+        fetch(`${SUPABASE_REST_URL}/houses?id=eq.${encodeURIComponent(h.id)}`, { method: 'PATCH', headers: SUPABASE_HEADERS, body: JSON.stringify({ likes: h.likes }) });
+      }
+      renderUI();
+    }
+
+    async function deleteAllOutOfCandyHouses() {
+      if (!isUnlocked) return;
+      const out = getHousesArray().filter(h => h.status === 'out');
+      if (!out.length) return alert('No "Out of Candy" houses found.');
+      if (!confirm(`Delete all ${out.length} "Out of Candy" houses permanently?`)) return;
+      out.forEach(h => delete housesMap[h.id]); renderUI();
+      await fetch(`${SUPABASE_REST_URL}/houses?status=eq.out`, { method: 'DELETE', headers: SUPABASE_HEADERS });
+    }
+
+    function exportHousesJson() {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getHousesArray(), null, 2));
+      const a = document.createElement('a'); a.href = dataStr; a.download = `spookymap_uae_backup_${Date.now()}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    async function importHousesJson(ev) {
+      const file = ev.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const items = JSON.parse(e.target.result);
+          if (!Array.isArray(items)) return alert('Invalid backup file.');
+          if (!confirm(`Import/Restore ${items.length} villas into Supabase?`)) return;
+          for (const item of items) {
+            const row = {
+              id: item.id || ('villa_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+              community: item.community || 'UAE', title: item.title || 'Villa',
+              lat: Number(item.lat), lng: Number(item.lng), icon: item.icon || '🎃',
+              status: item.status || 'plenty', description: item.desc || item.description || '',
+              tags: item.rawTags || item.tags || [], likes: Number(item.likes || 1),
+              image: item.image || '', created_at: Number(item.createdAt || item.created_at || Date.now())
+            };
+            await fetch(`${SUPABASE_REST_URL}/houses`, { method: 'POST', headers: { ...SUPABASE_HEADERS, 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify(row) });
+          }
+          fetchHousesFromSupabase();
+          alert('Backup restored!');
+        } catch (err) { alert('Error reading JSON: ' + err.message); }
+      };
+      reader.readAsText(file);
+    }
+
+    // LIVE FX & BROADCASTS
+    function runCandyRainFX() {
+      const layer = document.getElementById('fxLayer'), c = ['🍬', '🍭', '🍫', '🎃', '🧁', '🍩', '✨'];
+      for (let i = 0; i < 65; i++) {
+        const el = document.createElement('div'); el.className = 'candy-drop'; el.textContent = c[Math.floor(Math.random() * c.length)];
+        el.style.left = Math.random() * 98 + 'vw'; el.style.fontSize = (20 + Math.random() * 20) + 'px';
+        el.style.setProperty('--dur', (2.3 + Math.random() * 2.2) + 's'); el.style.setProperty('--drift', ((Math.random() - 0.5) * 160) + 'px');
+        el.style.animationDelay = (Math.random() * 1.1) + 's'; layer.appendChild(el); setTimeout(() => el.remove(), 5000);
+      }
+    }
+    function showWelcomePumpkinFX(sub) { runCandyRainFX(); document.getElementById('welcomePumpkinSub').textContent = sub || 'Happy Trick-or-Treating across the UAE! Stay safe & enjoy the candy! 🍬✨'; document.getElementById('welcomePumpkinOverlay').classList.remove('hidden'); setTimeout(hideWelcomePumpkin, 5500); }
+    function hideWelcomePumpkin() { document.getElementById('welcomePumpkinOverlay').classList.add('hidden'); }
+    function runGhostParadeFX() { const layer = document.getElementById('fxLayer'), fl = ['👻', '🦇', '🎃', '👻', '✨']; for (let i = 0; i < 22; i++) { const el = document.createElement('div'); el.className = 'ghost-flyer'; el.textContent = fl[i % fl.length]; el.style.top = (8 + Math.random() * 80) + 'vh'; el.style.fontSize = (26 + Math.random() * 22) + 'px'; el.style.setProperty('--dur', (3 + Math.random() * 2) + 's'); el.style.animationDelay = (Math.random() * 1.1) + 's'; layer.appendChild(el); setTimeout(() => el.remove(), 5500); } }
+
+    function triggerGlobalAdminEvent(type) {
+      if (!isUnlocked) return;
+      if (type === 'candy_rain') runCandyRainFX();
+      else if (type === 'welcome_pumpkin') showWelcomePumpkinFX();
+      else if (type === 'ghost_parade') runGhostParadeFX();
+      if (liveBroadcastChannel) liveBroadcastChannel.send({ type: 'broadcast', event: 'admin_fx', payload: { type, timestamp: Date.now() } });
+    }
+
+    function setQuickBroadcast(txt) { document.getElementById('adminBroadcastInput').value = txt; }
+
+    function sendAdminBroadcast(e) {
+      e.preventDefault();
+      if (!isUnlocked) return;
+      const input = document.getElementById('adminBroadcastInput'), msg = (input.value || '').trim();
+      const withPumpkin = document.getElementById('broadcastWithPumpkin').checked;
+      if (!msg) return;
+      showWelcomePumpkinFX(msg);
+      if (liveBroadcastChannel) liveBroadcastChannel.send({ type: 'broadcast', event: 'admin_fx', payload: { type: 'broadcast', message: msg, withPumpkin, timestamp: Date.now() } });
+      input.value = '';
+    }
+
+    function switchAdminTab(tab) {
+      ['houses', 'fx', 'db'].forEach(t => {
+        document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`admTab-${t}`).className = t === tab ? 'flex-1 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-zinc-950' : 'flex-1 py-1.5 rounded-lg text-xs font-semibold text-zinc-400';
       });
-      if (type === 'dark') darkVoyagerLayer.addTo(map);
-      else if (type === 'voyager') lightVoyagerLayer.addTo(map);
-      else plainSatelliteLayer.addTo(map);
-      document.getElementById(`layer-${type}`).className = 'px-2.5 py-1.5 rounded-lg bg-zinc-800 text-white font-medium transition';
     }
 
-    function toggleMobileDrawer() {
-      document.getElementById('sidebar').classList.toggle('-translate-x-full');
-    }
+    function flyToArea(a) { const t = COORDS[a] || COORDS.uae; map.flyTo(t.center, t.zoom, { animate: true, duration: 1.2 }); }
+    function focusHouse(id) { const h = housesMap[id]; if (!h) return; if (window.innerWidth < 640) toggleMobileDrawer(); map.flyTo([h.lat, h.lng], 17.2, { animate: true, duration: 1.1 }); }
+    function setMapLayer(t) { map.removeLayer(darkVoyagerLayer); map.removeLayer(lightVoyagerLayer); map.removeLayer(plainSatelliteLayer); ['dark', 'voyager', 'satellite'].forEach(id => { document.getElementById(`layer-${id}`).className = 'px-2.5 py-1.5 rounded-lg text-zinc-400 font-medium'; }); if (t === 'dark') darkVoyagerLayer.addTo(map); else if (t === 'voyager') lightVoyagerLayer.addTo(map); else plainSatelliteLayer.addTo(map); document.getElementById(`layer-${t}`).className = 'px-2.5 py-1.5 rounded-lg bg-zinc-800 text-white font-medium'; }
+    function toggleMobileDrawer() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
-    // Boot
-    populateUAECommunitySelectors();
-    checkLockState();
-    lucide.createIcons();
+    populateUAECommunitySelectors(); checkLockState(); lucide.createIcons();
     if (isUnlocked) fetchHousesFromSupabase();
     subscribeToRealtime();
     setInterval(() => { if (isUnlocked) fetchHousesFromSupabase(); }, 5000);
